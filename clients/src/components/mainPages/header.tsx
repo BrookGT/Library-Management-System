@@ -11,10 +11,12 @@ import {
     VStack,
     useColorMode,
     useColorModeValue,
-    border,
 } from "@chakra-ui/react";
+import HouseIcon from "@mui/icons-material/House";
+import PersonIcon from "@mui/icons-material/Person";
+import AutoAwesomeMosaicIcon from "@mui/icons-material/AutoAwesomeMosaic";
 import { CloseIcon, HamburgerIcon, MoonIcon, SunIcon } from "@chakra-ui/icons";
-import { color, m, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import logo from "/src/assets/pngegg logo.png";
 import user from "/src/assets/user.png";
 
@@ -27,8 +29,8 @@ const Header: React.FC = () => {
     const textColor = useColorModeValue("textColor.light", "textColor.dark");
     const linkBg = useColorModeValue("linkBg.light", "linkBg.dark");
     const linkHoverBg = useColorModeValue(
-        "linkHoverBg.light",
-        "linkHoverBg.dark"
+        "rgba(255, 255, 255, 0.6)",
+        "rgba(56, 178, 172, 1)"
     );
     const linkHoverColor = useColorModeValue(
         "linkHoverColor.light",
@@ -51,8 +53,7 @@ const Header: React.FC = () => {
         p: 2,
         color: "white",
         pr: "90%",
-        borderBottom: "white solid 0.05px",
-        borderRadius: "md",
+
         _hover: {
             color: "black",
             bg: linkHoverBg,
@@ -189,13 +190,22 @@ const Header: React.FC = () => {
                     py={2}
                 >
                     <Link href="/homepage" sx={linkStylesC}>
-                        Home
+                        <HStack>
+                            <HouseIcon />
+                            <Text>Home</Text>
+                        </HStack>
                     </Link>
                     <Link href="/catalog" sx={linkStylesC}>
-                        Catalog
+                        <HStack>
+                            <AutoAwesomeMosaicIcon />
+                            <Text>Catalog</Text>
+                        </HStack>
                     </Link>
                     <Link href="/account" sx={linkStylesC}>
-                        Account
+                        <HStack>
+                            <PersonIcon />
+                            <Text>Account</Text>
+                        </HStack>
                     </Link>
                 </VStack>
             </Collapse>

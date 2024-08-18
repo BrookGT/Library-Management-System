@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Heading,
@@ -11,11 +11,13 @@ import {
     FormLabel,
     Input,
     useColorModeValue,
+    useToast,
 } from "@chakra-ui/react";
 import { CheckIcon, CloseIcon, EditIcon } from "@chakra-ui/icons";
 import { motion } from "framer-motion";
 import Header from "./header";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 interface User {
     username: string;
@@ -24,17 +26,10 @@ interface User {
     returned: number;
 }
 
-const InitialUser: User = {
-    username: "BirukGT",
-    email: "Bura@example.com",
-    borrowed: 3,
-    returned: 2,
-};
-
 const MotionBox = motion(Box);
 
 const Account: React.FC = () => {
-    const [user, setUser] = useState<User>(InitialUser);
+    const [user, setUser] = useState<User | null>(null);
     const [showEditForm, setShowEditForm] = useState(false);
     const [newAcc, setNewAcc] = useState<User>({
         username: "",
@@ -43,24 +38,88 @@ const Account: React.FC = () => {
         returned: 0,
     });
 
-    const handleEditAcc = () => {
-        if (newAcc.username && newAcc.email) {
-            setUser(newAcc);
-            setNewAcc({
-                username: "",
-                email: "",
-                borrowed: 0,
-                returned: 0,
-            });
-            setShowEditForm(false);
-        }
-    };
+    const toast = useToast();
+    const navigate = useNavigate();
     const bgColor = useColorModeValue("gray.100", "gray.800");
     const acCol = useColorModeValue("gray.500", "gray.600");
     const aciCol = useColorModeValue("gray.300", "gray.400");
     const buttonCol = useColorModeValue("teal.400", "teal.500");
 
-    const navigate = useNavigate();
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const response = await axios.get(
+                    "http://localhost:5000/api/account",
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
+                setUser(response.data);
+            } catch (error) {
+                console.error("Failed to fetch user data:", error);
+            }
+        };
+
+        fetchUser();
+    }, []);
+
+    const handleEditAcc = async () => {
+        if (newAcc.username && newAcc.email) {
+            try {
+                const token = localStorage.getItem("token");
+                await axios.put(
+                    "http://localhost:5000/api/account",
+                    { username: newAcc.username, email: newAcc.email },
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                setUser(
+                    (prevUser) =>
+                        ({
+                            ...prevUser,
+                            username: newAcc.username,
+                            email: newAcc.email,
+                        } as User)
+                );
+
+                toast({
+                    title: "Account updated.",
+                    description:
+                        "Your account details have been updated successfully.",
+                    status: "success",
+                    duration: 5000,
+                    isClosable: true,
+                });
+
+                setNewAcc({
+                    username: "",
+                    email: "",
+                    borrowed: 0,
+                    returned: 0,
+                });
+                setShowEditForm(false);
+            } catch (error) {
+                console.error("Failed to update user data:", error);
+                toast({
+                    title: "Account updated.",
+                    description:
+                        "Your account details have been updated successfully.",
+                    status: "success",
+                    duration: 5000,
+                    isClosable: true,
+                });
+            }
+        }
+    };
+
+    const handleLogOut = () => {
+        localStorage.removeItem("UserToken");
+        navigate("/signin");
+    };
+
+    if (!user) {
+        return <Text>Loading...</Text>;
+    }
 
     return (
         <Box bg={bgColor} minHeight="100vh">
@@ -207,9 +266,7 @@ const Account: React.FC = () => {
                     ml="80%"
                     bg={buttonCol}
                     _hover={{ bg: "teal.900" }}
-                    onClick={() => {
-                        navigate("/");
-                    }}
+                    onClick={handleLogOut}
                 >
                     Logout
                 </Button>

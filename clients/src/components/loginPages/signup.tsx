@@ -1,17 +1,58 @@
 import React, { useState, FormEvent } from "react";
-import { Heading, Input, Button, VStack } from "@chakra-ui/react";
+import {
+    Heading,
+    Input,
+    Button,
+    VStack,
+    Alert,
+    AlertIcon,
+} from "@chakra-ui/react";
 import Layout from "./layout";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+
 const SignUp: React.FC = () => {
     const [username, setUsername] = useState<string>("");
     const [email, setEmail] = useState<string>("");
     const [password, setPassword] = useState<string>("");
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
     const navigate = useNavigate();
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        navigate("/homePage");
+
+        try {
+            const response = await axios.post(
+                "http://localhost:5000/api/signup",
+                {
+                    username,
+                    email,
+                    password,
+                }
+            );
+
+            if (response.status === 201) {
+                const token = response.data.token;
+
+                if (token) {
+                    localStorage.setItem("userToken", token);
+                }
+
+                setSuccess("Signed up successfully!");
+                setError(null);
+                setTimeout(() => {
+                    navigate("/homepage");
+                }, 1000);
+            }
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 400) {
+                setError("User already exists");
+            } else {
+                setError("Sign-up failed. Please try again.");
+            }
+            setSuccess(null);
+        }
     };
 
     return (
@@ -68,6 +109,18 @@ const SignUp: React.FC = () => {
                         </Button>
                     </VStack>
                 </form>
+                {error && (
+                    <Alert status="error">
+                        <AlertIcon />
+                        {error}
+                    </Alert>
+                )}
+                {success && (
+                    <Alert status="success">
+                        <AlertIcon />
+                        {success}
+                    </Alert>
+                )}
             </VStack>
         </Layout>
     );

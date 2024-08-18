@@ -1,9 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Box,
     Text,
     Image,
-    Link,
     SimpleGrid,
     useDisclosure,
     Modal,
@@ -15,9 +14,13 @@ import {
     ModalFooter,
     Button,
     useColorModeValue,
+    Alert,
+    AlertIcon,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import Header from "./header";
+import axios from "axios";
+import { ChevronLeftIcon, ChevronRightIcon } from "@chakra-ui/icons";
 
 const MotionBox = motion(Box);
 
@@ -26,162 +29,269 @@ interface Book {
     title: string;
     author: string;
     description: string;
-    image: string;
+    image_url: string;
 }
-
-const books: Book[] = [
-    {
-        id: 1,
-        title: "Small Factoring Business",
-        author: "Jeff Calender",
-        description: "This is a description of Book Title 1.",
-        image: "/src/assets/SmallFactoringBusiness by Jeff.png",
-    },
-    {
-        id: 2,
-        title: "The Purpose Driven Life",
-        author: "Rick Warren",
-        description: "This is a description of Book Title 2.",
-        image: "/src/assets/106049.webp",
-    },
-    {
-        id: 3,
-        title: "Cracking the Coding Interview",
-        author: "Gayle Laakman Mcdowell",
-        description: "This is a description of Book Title 2.",
-        image: "/src/assets/cracking the coding interview.png",
-    },
-    {
-        id: 4,
-        title: "The Paragmatic Programmer",
-        author: "Andrew Hunt and David Thomas",
-        description: "This is a description of Book Title 2.",
-        image: "/src/assets/the paragmatic programmer.jpg",
-    },
-    {
-        id: 5,
-        title: "Life of the Candle",
-        author: "Patrick M. Burkhardt",
-        description: "This is a description of Book Title 2.",
-        image: "/src/assets/1016368_OJK9410.jpg",
-    },
-];
 
 const Catalog: React.FC = () => {
     const { isOpen: isModalOpen, onOpen, onClose } = useDisclosure();
+    const [books, setBooks] = useState<Book[]>([]);
     const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-
-    // State for borrowed and returned books count
-    const [borrowedBooksCount, setBorrowedBooksCount] = useState(0);
-    const [returnedBooksCount, setReturnedBooksCount] = useState(0);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
 
     const handleBookClick = (book: Book) => {
         setSelectedBook(book);
         onOpen();
     };
 
-    const handleBorrow = () => {
-        setBorrowedBooksCount(borrowedBooksCount + 1);
-        onClose();
+    const handleBorrow = async () => {
+        if (selectedBook) {
+            const token = localStorage.getItem("token");
+
+            if (token) {
+                try {
+                    const response = await axios.post(
+                        "http://localhost:5000/api/borrow",
+                        { bookId: selectedBook.id },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+
+                    if (response.data.error) {
+                        setError(response.data.error);
+                        setSuccess(null);
+                    } else {
+                        setSuccess("You borrowed this book!");
+                        setError(null);
+                    }
+
+                    setTimeout(() => {
+                        setSuccess(null);
+                        setError(null);
+                    }, 2000);
+                } catch (error) {
+                    if (axios.isAxiosError(error)) {
+                        setError(
+                            error.response?.data?.error ||
+                                "Failed to borrow book. Please try again."
+                        );
+                        setSuccess(null);
+                    } else {
+                        console.error("Unexpected error:", error);
+                        setError(
+                            "An unexpected error occurred. Please try again."
+                        );
+                        setSuccess(null);
+                    }
+
+                    setTimeout(() => setError(null), 2000);
+                }
+            } else {
+                setError("No token found. Please sign in.");
+                setSuccess(null);
+                setTimeout(() => setError(null), 2000);
+            }
+        }
     };
 
-    const handleReturn = () => {
-        setBorrowedBooksCount(borrowedBooksCount - 1);
-        setReturnedBooksCount(returnedBooksCount + 1);
-        onClose();
+    const handleReturn = async () => {
+        if (selectedBook) {
+            const token = localStorage.getItem("token");
+
+            if (token) {
+                try {
+                    const response = await axios.post(
+                        "http://localhost:5000/api/return",
+                        { bookId: selectedBook.id },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                    );
+
+                    if (response.data.error) {
+                        setError(response.data.error);
+                        setSuccess(null);
+                    } else {
+                        setSuccess("You returned this book!");
+                        setError(null);
+                    }
+
+                    setTimeout(() => {
+                        setSuccess(null);
+                        setError(null);
+                    }, 2000);
+                } catch (error) {
+                    if (axios.isAxiosError(error)) {
+                        setError(
+                            error.response?.data?.error ||
+                                "Failed to return book. Please try again."
+                        );
+                        setSuccess(null);
+                        setTimeout(() => setError(null), 2000);
+                    } else {
+                        console.error("Unexpected error:", error);
+                        setError(
+                            "An unexpected error occurred. Please try again."
+                        );
+                        setSuccess(null);
+                        setTimeout(() => setError(null), 2000);
+                    }
+                }
+            } else {
+                setError("User ID not found.");
+                setSuccess(null);
+                setTimeout(() => setError(null), 2000);
+            }
+        }
     };
+
+    useEffect(() => {
+        const fetchBooks = async () => {
+            try {
+                const response = await axios.get(
+                    "http://localhost:5000/api/books",
+                    {
+                        params: {
+                            page: currentPage,
+                            limit: 6,
+                        },
+                    }
+                );
+                setBooks(response.data.books);
+                setTotalPages(response.data.totalPages);
+            } catch (error) {
+                console.error("Failed to fetch books:", error);
+            }
+        };
+
+        fetchBooks();
+    }, [currentPage]);
 
     const bgColor = useColorModeValue("gray.100", "gray.800");
     const footerCol = useColorModeValue("teal.500", "gray.600");
 
     return (
-        <Box bg={bgColor} pt={0.1}>
-            <Header />
-
-            <Box color={"black"}>
-                <SimpleGrid
-                    columns={{ base: 1, sm: 2, md: 3, lg: 4 }}
-                    spacing={4}
-                >
-                    {books.map((book) => (
-                        <MotionBox
-                            key={book.id}
-                            as={motion.div}
-                            whileHover={{ scale: 1.05 }}
-                            onClick={() => handleBookClick(book)}
-                            cursor="pointer"
-                            boxShadow="md"
-                            p={4}
-                            m={2}
-                            borderRadius="md"
-                            bg="white"
-                            initial={{ opacity: 0, y: 50 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
-                        >
-                            <Image
-                                src={book.image}
-                                alt={book.title}
+        <>
+            <Box bg={bgColor} pt={0.1}>
+                <Header />
+                <Box color={"black"}>
+                    <SimpleGrid
+                        columns={{ base: 1, sm: 2, md: 3, lg: 4 }}
+                        spacing={4}
+                    >
+                        {books.map((book) => (
+                            <MotionBox
+                                key={book.id}
+                                as={motion.div}
+                                whileHover={{ scale: 1.05 }}
+                                onClick={() => handleBookClick(book)}
+                                cursor="pointer"
+                                boxShadow="md"
+                                p={4}
+                                m={2}
                                 borderRadius="md"
-                            />
-                            <Text mt={2} fontWeight="bold">
-                                {book.title}
-                            </Text>
-                            <Text>{book.author}</Text>
-                        </MotionBox>
-                    ))}
-                </SimpleGrid>
+                                bg="white"
+                                initial={{ opacity: 0, y: 50 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6, delay: 0.2 }}
+                            >
+                                <Image
+                                    src={book.image_url}
+                                    alt={book.title}
+                                    borderRadius="md"
+                                />
+                                <Text mt={2} fontWeight="bold">
+                                    {book.title}
+                                </Text>
+                                <Text>{book.author}</Text>
+                            </MotionBox>
+                        ))}
+                    </SimpleGrid>
+                </Box>
+
+                <Box display="flex" justifyContent="center" mt={4}>
+                    <Button
+                        onClick={() =>
+                            setCurrentPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        isDisabled={currentPage === 1}
+                        leftIcon={<ChevronLeftIcon />}
+                        mr={2}
+                    >
+                        Previous
+                    </Button>
+                    <Text alignSelf="center">
+                        Page {currentPage} of {totalPages}
+                    </Text>
+                    <Button
+                        onClick={() =>
+                            setCurrentPage((prev) =>
+                                Math.min(prev + 1, totalPages)
+                            )
+                        }
+                        isDisabled={currentPage === totalPages}
+                        rightIcon={<ChevronRightIcon />}
+                        ml={2}
+                    >
+                        Next
+                    </Button>
+                </Box>
+
+                {selectedBook && (
+                    <Modal isOpen={isModalOpen} onClose={onClose}>
+                        <ModalOverlay />
+                        <ModalContent>
+                            <ModalHeader>{selectedBook.title}</ModalHeader>
+                            <ModalCloseButton />
+                            <ModalBody>
+                                <Image
+                                    src={selectedBook.image_url}
+                                    alt={selectedBook.title}
+                                    borderRadius="md"
+                                />
+                                <Text mt={4}>{selectedBook.description}</Text>
+                            </ModalBody>
+                            {success && (
+                                <Alert status="success">
+                                    <AlertIcon />
+                                    {success}
+                                </Alert>
+                            )}
+                            {error && (
+                                <Alert status="error">
+                                    <AlertIcon />
+                                    {error}
+                                </Alert>
+                            )}
+                            <ModalFooter>
+                                <Button
+                                    colorScheme="teal"
+                                    mr={3}
+                                    onClick={handleBorrow}
+                                >
+                                    Borrow
+                                </Button>
+                                <Button
+                                    border="solid 1px"
+                                    variant="ghost"
+                                    onClick={handleReturn}
+                                >
+                                    Return
+                                </Button>
+                            </ModalFooter>
+                        </ModalContent>
+                    </Modal>
+                )}
             </Box>
-
-            {selectedBook && (
-                <Modal isOpen={isModalOpen} onClose={onClose}>
-                    <ModalOverlay />
-                    <ModalContent>
-                        <ModalHeader>{selectedBook.title}</ModalHeader>
-                        <ModalCloseButton />
-                        <ModalBody>
-                            <Image
-                                src={selectedBook.image}
-                                alt={selectedBook.title}
-                                borderRadius="md"
-                            />
-                            <Text mt={4}>{selectedBook.description}</Text>
-                        </ModalBody>
-                        <ModalFooter>
-                            <Button
-                                colorScheme="teal"
-                                mr={3}
-                                onClick={handleBorrow}
-                            >
-                                Borrow
-                            </Button>
-                            <Button
-                                border="solid 1px "
-                                variant="ghost"
-                                onClick={handleReturn}
-                            >
-                                Return
-                            </Button>
-                        </ModalFooter>
-                    </ModalContent>
-                </Modal>
-            )}
-
             <Box
                 as="footer"
                 p={6}
                 bg={footerCol}
-                color="white"
+                color="gray.100"
                 textAlign="center"
             >
-                <Text>
-                    Inbox us for book recommendation:
-                    <Link p={2} href="mailto:email@library.com">
-                        email@library.com
-                    </Link>
-                </Text>
+                &copy; 2023 LibTrack. All rights reserved.
             </Box>
-        </Box>
+        </>
     );
 };
 

@@ -1,4 +1,3 @@
-// HomePage.tsx
 import React from "react";
 import bgImage from "/src/assets/bluredbg.jpg";
 import {

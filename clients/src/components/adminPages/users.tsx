@@ -1,193 +1,140 @@
-import React, { useState } from "react";
-import logo from "/src/assets/logo.png";
+import React, { useMemo, useState, useEffect } from "react";
 import {
+    Typography,
+    Grid,
     Box,
-    Flex,
-    Heading,
-    Text,
-    Image,
-    Link,
-    HStack,
-    SimpleGrid,
-    VStack,
-    IconButton,
-    Collapse,
-} from "@chakra-ui/react";
-import { CloseIcon, HamburgerIcon } from "@chakra-ui/icons";
+    Stack,
+    useMediaQuery,
+    createTheme,
+    ThemeProvider,
+    CssBaseline,
+} from "@mui/material";
+import axios from "axios";
+import Header from "./AdminHeader";
 
 interface User {
     id: number;
     username: string;
     email: string;
-    booksBorrowed: number;
-    booksReturned: number;
+    books_borrowed: number;
+    books_returned: number;
 }
 
-const users: User[] = [
-    {
-        id: 1,
-        username: "BirukGT",
-        email: "Bura@example.com",
-        booksBorrowed: 3,
-        booksReturned: 2,
-    },
-    {
-        id: 2,
-        username: "AbebeTT",
-        email: "Abe@example.com",
-        booksBorrowed: 5,
-        booksReturned: 5,
-    },
-    {
-        id: 3,
-        username: "TesfaMM",
-        email: "tesfa@example.com",
-        booksBorrowed: 2,
-        booksReturned: 1,
-    },
-    {
-        id: 4,
-        username: "Dawit_GG",
-        email: "Dave@example.com",
-        booksBorrowed: 4,
-        booksReturned: 4,
-    },
-];
-
 const Users: React.FC = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const handleToggle = () => setIsOpen(!isOpen);
-    const linkStyles = {
-        p: "2",
-        _hover: {
-            borderRadius: "md",
-            bg: "rgba(255, 255, 255, 0.6)",
-        },
+    const [users, setUsers] = useState<User[]>([]);
+    const [darkMode, setDarkMode] = useState(false);
+
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const response = await axios.get(
+                    "http://localhost:5000/api/users"
+                );
+                setUsers(response.data);
+            } catch (error) {
+                console.error("Error fetching users:", error);
+            }
+        };
+
+        fetchUsers();
+    }, []);
+
+    const theme = useMemo(
+        () =>
+            createTheme({
+                palette: {
+                    mode: darkMode ? "dark" : "light",
+                },
+            }),
+        [darkMode]
+    );
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+    const isMidScreen = useMediaQuery(theme.breakpoints.down("md"));
+
+    const handleToggleTheme = () => {
+        setDarkMode((prevMode) => !prevMode);
     };
-    const linkStylesC = {
-        p: "2",
-        pr: "80%",
-        _hover: {
-            borderRadius: "md",
-            bg: "rgba(255, 255, 255, 0.6)",
-        },
-    };
+
     return (
-        <>
-            <Flex
-                as="header"
-                p={6}
-                bg="gray.200"
-                color="black"
-                justify="space-between"
-                align="center"
-            >
-                <Heading>
-                    <HStack>
-                        <Image src={logo} boxSize="60px" borderRadius="5px" />
-                        <Text fontSize={{ base: 18, lg: 28, md: 25, sm: 20 }}>
-                            Admin Dashboard
-                        </Text>
-                    </HStack>
-                </Heading>
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Header darkMode={darkMode} handleToggleTheme={handleToggleTheme} />
 
-                <Flex
-                    display={{
-                        base: "none",
-                        lg: "flex",
-                        md: "flex",
-                        sm: "flex",
+            <Grid container style={{ minHeight: "100vh" }}>
+                <Grid
+                    item
+                    xs={12}
+                    sm={12}
+                    style={{
+                        padding: "20px",
+                        marginLeft: isSmallScreen || isMidScreen ? 0 : "25%",
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginTop: "60px",
                     }}
                 >
-                    <Link p={2} href="./adminDashboard" sx={linkStyles}>
-                        Home
-                    </Link>
-                    <Link p={2} href="./users" sx={linkStyles}>
-                        Users
-                    </Link>
-                </Flex>
-                <Box
-                    display={{
-                        base: "flex",
-                        lg: "none",
-                        md: "none",
-                        sm: "none",
-                    }}
-                >
-                    <IconButton
-                        aria-label="Toggle Navigation"
-                        icon={
-                            isOpen ? (
-                                <CloseIcon color="black" />
-                            ) : (
-                                <HamburgerIcon color="black" />
-                            )
-                        }
-                        onClick={handleToggle}
-                        colorScheme="white"
-                        boxShadow="lg"
-                        size="lg"
-                    />
-                </Box>
-            </Flex>
-
-            <Collapse in={isOpen}>
-                <VStack
-                    spacing={4}
-                    align="start"
-                    p={2}
-                    mb={3}
-                    pl={8}
-                    bg="rgba(255, 255, 255, 0.5)"
-                    borderRadius="md"
-                >
-                    <Link href="/adminDashboard" sx={linkStylesC}>
-                        Home
-                    </Link>
-
-                    <Link href="/users" sx={linkStylesC}>
-                        Users
-                    </Link>
-                </VStack>
-            </Collapse>
-
-            <Heading
-                as="h2"
-                size="xl"
-                textAlign="center"
-                mt={4}
-                pb={1}
-                mx={50}
-                borderBottom="1px solid black"
-            >
-                List of Users
-            </Heading>
-            <SimpleGrid
-                columns={{ base: 1, sm: 2, md: 3, lg: 4 }}
-                spacing={4}
-                p={4}
-            >
-                {users.map((user) => (
                     <Box
-                        key={user.id}
-                        boxShadow="md"
-                        p={5}
-                        m={2}
-                        borderRadius="md"
-                        bg="gray.50"
+                        style={{
+                            backgroundColor: "white",
+                            padding: "20px",
+                            borderRadius: "8px",
+                            boxShadow: "0 0 10px rgba(0,0,0,0.4)",
+                            background: "rgba(0,0,0,0.05)",
+                        }}
                     >
-                        <VStack spacing={2}>
-                            <Text fontWeight="bold" fontSize="lg">
-                                {user.username}
-                            </Text>
-                            <Text fontSize="sm">{user.email}</Text>
-                            <Text>Books Borrowed: {user.booksBorrowed}</Text>
-                            <Text>Books Returned: {user.booksReturned}</Text>
-                        </VStack>
+                        <Box mt={4}>
+                            <Grid container spacing={4} padding={4}>
+                                {users.map((user) => (
+                                    <Grid
+                                        item
+                                        key={user.id}
+                                        xs={12}
+                                        sm={6}
+                                        md={4}
+                                        lg={4}
+                                    >
+                                        <Box
+                                            boxShadow={3}
+                                            padding={5}
+                                            margin={2}
+                                            borderRadius={2}
+                                            bgcolor="white"
+                                        >
+                                            <Stack
+                                                display="flex"
+                                                flexDirection="column"
+                                                alignItems="center"
+                                                spacing={2}
+                                            >
+                                                <Typography
+                                                    variant="h6"
+                                                    fontWeight="bold"
+                                                >
+                                                    {user.username}
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    {user.email}
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    Books Borrowed:{" "}
+                                                    {user.books_borrowed}
+                                                </Typography>
+                                                <Typography variant="body2">
+                                                    Books Returned:{" "}
+                                                    {user.books_returned}
+                                                </Typography>
+                                            </Stack>
+                                        </Box>
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        </Box>
                     </Box>
-                ))}
-            </SimpleGrid>
-        </>
+                </Grid>
+            </Grid>
+        </ThemeProvider>
     );
 };
 
