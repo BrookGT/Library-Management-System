@@ -20,22 +20,25 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 interface User {
+    id: number;
     username: string;
     email: string;
-    borrowed: number;
-    returned: number;
+}
+
+interface UserActivity {
+    booksBorrowedCount: number;
+    booksReturnedCount: number;
 }
 
 const MotionBox = motion(Box);
 
 const Account: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
+    const [userActivity, setUserActivity] = useState<UserActivity | null>(null);
     const [showEditForm, setShowEditForm] = useState(false);
-    const [newAcc, setNewAcc] = useState<User>({
+    const [newAcc, setNewAcc] = useState<Partial<User>>({
         username: "",
         email: "",
-        borrowed: 0,
-        returned: 0,
     });
 
     const toast = useToast();
@@ -48,14 +51,15 @@ const Account: React.FC = () => {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("userToken");
                 const response = await axios.get(
                     "http://localhost:5000/api/account",
                     {
                         headers: { Authorization: `Bearer ${token}` },
                     }
                 );
-                setUser(response.data);
+                setUser(response.data.user);
+                setUserActivity(response.data.activity);
             } catch (error) {
                 console.error("Failed to fetch user data:", error);
             }
@@ -67,7 +71,7 @@ const Account: React.FC = () => {
     const handleEditAcc = async () => {
         if (newAcc.username && newAcc.email) {
             try {
-                const token = localStorage.getItem("token");
+                const token = localStorage.getItem("userToken");
                 await axios.put(
                     "http://localhost:5000/api/account",
                     { username: newAcc.username, email: newAcc.email },
@@ -77,8 +81,8 @@ const Account: React.FC = () => {
                     (prevUser) =>
                         ({
                             ...prevUser,
-                            username: newAcc.username,
-                            email: newAcc.email,
+                            username: newAcc.username!,
+                            email: newAcc.email!,
                         } as User)
                 );
 
@@ -91,12 +95,7 @@ const Account: React.FC = () => {
                     isClosable: true,
                 });
 
-                setNewAcc({
-                    username: "",
-                    email: "",
-                    borrowed: 0,
-                    returned: 0,
-                });
+                setNewAcc({});
                 setShowEditForm(false);
             } catch (error) {
                 console.error("Failed to update user data:", error);
@@ -113,11 +112,11 @@ const Account: React.FC = () => {
     };
 
     const handleLogOut = () => {
-        localStorage.removeItem("UserToken");
+        localStorage.removeItem("userToken");
         navigate("/signin");
     };
 
-    if (!user) {
+    if (!user || !userActivity) {
         return <Text>Loading...</Text>;
     }
 
@@ -173,7 +172,7 @@ const Account: React.FC = () => {
                                     <Input
                                         border={"black solid 1px"}
                                         _hover={{ border: "black solid 2px" }}
-                                        value={newAcc.username}
+                                        value={newAcc.username || ""}
                                         onChange={(e) =>
                                             setNewAcc({
                                                 ...newAcc,
@@ -187,7 +186,7 @@ const Account: React.FC = () => {
                                     <Input
                                         border={"black solid 1px"}
                                         _hover={{ border: "black solid 2px" }}
-                                        value={newAcc.email}
+                                        value={newAcc.email || ""}
                                         onChange={(e) =>
                                             setNewAcc({
                                                 ...newAcc,
@@ -250,13 +249,13 @@ const Account: React.FC = () => {
                         <HStack>
                             <Text>Borrowed books: </Text>
                             <Text fontWeight="bold" fontSize="lg">
-                                {user.borrowed}
+                                {userActivity.booksBorrowedCount}
                             </Text>
                         </HStack>
                         <HStack>
                             <Text>Returned books: </Text>
                             <Text fontWeight="bold" fontSize="lg">
-                                {user.returned}
+                                {userActivity.booksReturnedCount}
                             </Text>
                         </HStack>
                     </VStack>

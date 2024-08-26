@@ -16,6 +16,7 @@ import {
     useColorModeValue,
     Alert,
     AlertIcon,
+    Input,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import Header from "./header";
@@ -40,6 +41,7 @@ const Catalog: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(0);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const handleBookClick = (book: Book) => {
         setSelectedBook(book);
@@ -48,7 +50,7 @@ const Catalog: React.FC = () => {
 
     const handleBorrow = async () => {
         if (selectedBook) {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("userToken");
 
             if (token) {
                 try {
@@ -97,7 +99,7 @@ const Catalog: React.FC = () => {
 
     const handleReturn = async () => {
         if (selectedBook) {
-            const token = localStorage.getItem("token");
+            const token = localStorage.getItem("userToken");
 
             if (token) {
                 try {
@@ -152,7 +154,8 @@ const Catalog: React.FC = () => {
                     {
                         params: {
                             page: currentPage,
-                            limit: 6,
+                            limit: 8,
+                            search: searchTerm,
                         },
                     }
                 );
@@ -164,7 +167,12 @@ const Catalog: React.FC = () => {
         };
 
         fetchBooks();
-    }, [currentPage]);
+    }, [currentPage, searchTerm]);
+
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+        setCurrentPage(1);
+    };
 
     const bgColor = useColorModeValue("gray.100", "gray.800");
     const footerCol = useColorModeValue("teal.500", "gray.600");
@@ -173,6 +181,20 @@ const Catalog: React.FC = () => {
         <>
             <Box bg={bgColor} pt={0.1}>
                 <Header />
+                <Box
+                    m={4}
+                    mx="auto"
+                    width={"50%"}
+                    border="solid 1px"
+                    borderRadius={4}
+                >
+                    <Input
+                        variant="outlined"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder="Search by title or author"
+                    />
+                </Box>
                 <Box color={"black"}>
                     <SimpleGrid
                         columns={{ base: 1, sm: 2, md: 3, lg: 4 }}
@@ -208,7 +230,7 @@ const Catalog: React.FC = () => {
                     </SimpleGrid>
                 </Box>
 
-                <Box display="flex" justifyContent="center" mt={4}>
+                <Box display="flex" justifyContent="center" m={4}>
                     <Button
                         onClick={() =>
                             setCurrentPage((prev) => Math.max(prev - 1, 1))

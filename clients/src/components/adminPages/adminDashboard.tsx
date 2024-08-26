@@ -27,7 +27,7 @@ import { Link } from "react-router-dom";
 import MyCalendar from "./calendar";
 import Header from "./AdminHeader";
 import bgtext from "/src/assets/bgtext.jpg";
-import userImage from "/src/assets/user11png.png"; // Import images
+import userImage from "/src/assets/user11png.png";
 import bookImage from "/src/assets/book.png";
 import genresImage from "/src/assets/genres.png";
 import topUserImage from "/src/assets/userspng1.png";

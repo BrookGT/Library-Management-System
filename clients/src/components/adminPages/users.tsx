@@ -8,6 +8,7 @@ import {
     createTheme,
     ThemeProvider,
     CssBaseline,
+    Button,
 } from "@mui/material";
 import axios from "axios";
 import Header from "./AdminHeader";
@@ -23,21 +24,42 @@ interface User {
 const Users: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [darkMode, setDarkMode] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
 
     useEffect(() => {
         const fetchUsers = async () => {
             try {
                 const response = await axios.get(
-                    "http://localhost:5000/api/users"
+                    "http://localhost:5000/api/users",
+                    {
+                        params: {
+                            page: currentPage,
+                            limit: 8,
+                        },
+                    }
                 );
-                setUsers(response.data);
+                setUsers(response.data.users);
+                setTotalPages(response.data.totalPages);
             } catch (error) {
                 console.error("Error fetching users:", error);
             }
         };
 
         fetchUsers();
-    }, []);
+    }, [currentPage]);
+
+    const handlePreviousPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(currentPage - 1);
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < totalPages) {
+            setCurrentPage(currentPage + 1);
+        }
+    };
 
     const theme = useMemo(
         () =>
@@ -82,10 +104,19 @@ const Users: React.FC = () => {
                             borderRadius: "8px",
                             boxShadow: "0 0 10px rgba(0,0,0,0.4)",
                             background: "rgba(0,0,0,0.05)",
+                            width: "100%",
+                            maxWidth: "1200px",
                         }}
                     >
                         <Box mt={4}>
-                            <Grid container spacing={4} padding={4}>
+                            <Grid
+                                container
+                                spacing={4}
+                                padding={4}
+                                justifyContent={
+                                    users.length === 1 ? "center" : "flex-start"
+                                }
+                            >
                                 {users.map((user) => (
                                     <Grid
                                         item
@@ -94,19 +125,27 @@ const Users: React.FC = () => {
                                         sm={6}
                                         md={4}
                                         lg={4}
+                                        style={{ display: "flex" }}
                                     >
                                         <Box
                                             boxShadow={3}
-                                            padding={5}
-                                            margin={2}
+                                            padding={4}
                                             borderRadius={2}
                                             bgcolor="white"
+                                            flex="1"
+                                            display="flex"
+                                            flexDirection="column"
+                                            justifyContent="center"
+                                            alignItems="center"
+                                            height="100%"
+                                            minHeight="200px"
                                         >
                                             <Stack
                                                 display="flex"
                                                 flexDirection="column"
                                                 alignItems="center"
                                                 spacing={2}
+                                                textAlign="center"
                                             >
                                                 <Typography
                                                     variant="h6"
@@ -130,6 +169,34 @@ const Users: React.FC = () => {
                                     </Grid>
                                 ))}
                             </Grid>
+                            <Box
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                m={4}
+                            >
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handlePreviousPage}
+                                    disabled={currentPage === 1}
+                                    style={{ marginRight: "10px" }}
+                                >
+                                    Previous
+                                </Button>
+                                <Typography variant="body1">
+                                    Page {currentPage} of {totalPages}
+                                </Typography>
+                                <Button
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleNextPage}
+                                    disabled={currentPage === totalPages}
+                                    style={{ marginLeft: "10px" }}
+                                >
+                                    Next
+                                </Button>
+                            </Box>
                         </Box>
                     </Box>
                 </Grid>

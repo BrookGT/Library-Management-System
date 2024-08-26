@@ -46,7 +46,7 @@ const Books: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const booksPerPage = 6;
+    const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
         const fetchBooks = async () => {
@@ -56,7 +56,8 @@ const Books: React.FC = () => {
                     {
                         params: {
                             page: currentPage,
-                            limit: booksPerPage,
+                            limit: 8,
+                            search: searchTerm,
                         },
                     }
                 );
@@ -69,7 +70,7 @@ const Books: React.FC = () => {
         };
 
         fetchBooks();
-    }, [currentPage]);
+    }, [currentPage, searchTerm]);
 
     const handlePreviousPage = () => {
         if (currentPage > 1) {
@@ -164,6 +165,11 @@ const Books: React.FC = () => {
         setDarkMode((prevMode) => !prevMode);
     };
 
+    const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchTerm(event.target.value);
+        setCurrentPage(1);
+    };
+
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
@@ -179,6 +185,23 @@ const Books: React.FC = () => {
                 >
                     <Typography variant="h4">List of Books</Typography>
                 </Box>
+
+                <Box
+                    mt={4}
+                    mx="auto"
+                    ml={!isSmallScreen && !isMidScreen ? "30%" : "auto"}
+                    width={isSmallScreen ? "90%" : isMidScreen ? "80%" : "50%"}
+                >
+                    <TextField
+                        fullWidth
+                        label="Search Books"
+                        variant="outlined"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder="Search by title or author"
+                    />
+                </Box>
+
                 <Grid
                     item
                     xs={12}
@@ -259,7 +282,7 @@ const Books: React.FC = () => {
                             display="flex"
                             justifyContent="center"
                             alignItems="center"
-                            mt={4}
+                            m={4}
                         >
                             <Button
                                 variant="contained"
@@ -306,7 +329,6 @@ const Books: React.FC = () => {
                     </Box>
                 </Grid>
             </Grid>
-
             <Dialog
                 open={openDeleteDialog}
                 onClose={handleCloseDeleteDialog}
@@ -335,7 +357,6 @@ const Books: React.FC = () => {
                     </Button>
                 </DialogActions>
             </Dialog>
-
             <Dialog
                 open={openAddFormDialog}
                 onClose={handleCloseAddFormDialog}
