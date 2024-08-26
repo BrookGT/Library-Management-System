@@ -9,6 +9,19 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
-    "include": ["src"],
+    "include": [
+        "src",
+        "src/models/adminModel.ts",
+        "src/models/association.ts",
+        "src/models/bookCount.ts",
+        "src/models/bookModel.ts",
+        "src/models/borrowing.ts",
+        "src/models/returning.ts",
+        "src/models/userActivity.ts",
+        "src/models/usersModel.ts",
+        "src/config/db.ts",
+        "src/config/jwtKey.ts",
+        "src/models/associations.ts"
+    ],
     "exclude": ["node_modules"]
 }

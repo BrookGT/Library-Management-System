@@ -1,7 +1,11 @@
 import { Router } from "express";
-import pool from "./db";
 import jwt from "jsonwebtoken";
-import { jwtSecret } from "../config";
+import { jwtSecret } from "../config/jwtKey";
+import BookCount from "../models/bookCount";
+import Book from "../models/bookModel";
+import Borrowing from "../models/borrowing";
+import UserActivity from "../models/userActivity";
+import User from "../models/usersModel";
 
 const router = Router();
 
@@ -15,7 +19,6 @@ router.post("/borrow", async (req, res) => {
 
     try {
         const decoded = jwt.verify(token, jwtSecret) as { userId: number };
-
         const { bookId } = req.body;
         const userId = decoded.userId;
 
@@ -25,40 +28,65 @@ router.post("/borrow", async (req, res) => {
                 .json({ error: "Book ID and User ID are required" });
         }
 
-        // Check if the user has already borrowed the book
-        const existingBorrowing = await pool.query(
-            "SELECT * FROM borrowings WHERE user_id = $1 AND book_id = $2",
-            [userId, bookId]
-        );
+        // Check if the book exists
+        const book = await Book.findByPk(bookId);
+        if (!book) {
+            return res.status(404).json({ error: "Book not found" });
+        }
 
-        if (existingBorrowing.rows.length > 0) {
+        // Check if the user exists
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Check if the user has already borrowed the book
+        const existingBorrowing = await Borrowing.findOne({
+            where: { user_id: userId, book_id: bookId },
+        });
+
+        if (existingBorrowing) {
             return res
                 .status(400)
                 .json({ error: "You've already borrowed this book!" });
         }
 
-        const result = await pool.query(
-            "INSERT INTO borrowings (user_id, book_id, borrow_date) VALUES ($1, $2, NOW()) RETURNING *",
-            [userId, bookId]
+        // Create new borrowing record
+        const newBorrowing = await Borrowing.create({
+            user_id: userId,
+            book_id: bookId,
+        });
+
+        // Update book count
+        const [bookCount] = await BookCount.findOrCreate({
+            where: { book_id: bookId },
+            defaults: { book_id: bookId, borrow_count: 0 },
+        });
+
+        await BookCount.update(
+            { borrow_count: (bookCount.borrow_count ?? 0) + 1 }, // Handle possible undefined
+            { where: { book_id: bookId } }
         );
 
-        await pool.query(
-            `INSERT INTO book_counts (book_id, borrow_count)
-             VALUES ($1, 1)
-             ON CONFLICT (book_id) 
-             DO UPDATE SET borrow_count = book_counts.borrow_count + 1`,
-            [bookId]
+        // Update user activity
+        const [userActivity] = await UserActivity.findOrCreate({
+            where: { user_id: userId },
+            defaults: {
+                user_id: userId,
+                books_borrowed_count: 0,
+                books_returned_count: 0,
+            },
+        });
+
+        await UserActivity.update(
+            {
+                books_borrowed_count:
+                    (userActivity.books_borrowed_count ?? 0) + 1,
+            }, // Handle possible undefined
+            { where: { user_id: userId } }
         );
 
-        await pool.query(
-            `INSERT INTO user_activity (user_id, books_borrowed_count)
-         VALUES ($1, 1)
-         ON CONFLICT (user_id) 
-         DO UPDATE SET books_borrowed_count = user_activity.books_borrowed_count + 1`,
-            [userId]
-        );
-
-        res.status(201).json(result.rows[0]);
+        res.status(201).json(newBorrowing);
     } catch (err) {
         if (err instanceof jwt.JsonWebTokenError) {
             return res.status(401).json({ error: "Invalid token" });

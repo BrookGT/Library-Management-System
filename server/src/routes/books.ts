@@ -1,30 +1,51 @@
 import { Router } from "express";
-import pool from "./db";
+import { Op } from "sequelize";
+import { parsePaginationParams } from "../utils/requestFormatter";
+import { formatPaginatedResponse } from "../utils/responseFormatter";
+import Book from "../models/bookModel";
 
 const router = Router();
 
 // Fetch all books
 router.get("/books", async (req, res) => {
-    const { page = 1, limit = 6 } = req.query;
-    const offset = (Number(page) - 1) * Number(limit);
-
     try {
-        const totalBooksQuery = await pool.query("SELECT COUNT(*) FROM books");
-        const totalBooks = parseInt(totalBooksQuery.rows[0].count, 10);
+        const { page, limit, search } = parsePaginationParams(req);
+        const offset = (page - 1) * limit;
+        const whereClause = search
+            ? {
+                  [Op.or]: [
+                      { title: { [Op.iLike]: `%${search}%` } },
+                      { author: { [Op.iLike]: `%${search}%` } },
+                  ],
+              }
+            : {};
 
-        const booksQuery = await pool.query(
-            "SELECT * FROM books ORDER BY id LIMIT $1 OFFSET $2",
-            [limit, offset]
+        const totalBooks = await Book.count({ where: whereClause });
+
+        // Fetch books with pagination
+        const books = await Book.findAll({
+            where: whereClause,
+            limit: Number(limit),
+            offset: offset,
+            order: [["id", "ASC"]],
+        });
+
+        const response = formatPaginatedResponse(
+            books,
+            totalBooks,
+            page,
+            Math.ceil(totalBooks / limit)
         );
 
         res.json({
-            books: booksQuery.rows,
+            response,
+            books,
             totalBooks,
             totalPages: Math.ceil(totalBooks / Number(limit)),
             currentPage: Number(page),
         });
     } catch (err) {
-        console.error(err);
+        console.error("Error fetching books:", err);
         res.status(500).json({ error: "Server error" });
     }
 });
@@ -44,12 +65,17 @@ router.post("/books", async (req, res) => {
             description,
             image_url,
         });
-        const result = await pool.query(
-            "INSERT INTO books (title, author, description, image_url) VALUES ($1, $2, $3, $4) RETURNING *",
-            [title, author, description, image_url]
-        );
-        console.log("Book added successfully:", result.rows[0]);
-        res.status(201).json(result.rows[0]);
+
+        // Create a new book record
+        const newBook = await Book.create({
+            title,
+            author,
+            description,
+            image_url,
+        });
+
+        console.log("Book added successfully:", newBook);
+        res.status(201).json(newBook);
     } catch (err) {
         console.error("Error adding book:", err);
         res.status(500).json({ error: "Internal server error" });
@@ -61,13 +87,16 @@ router.delete("/books/:id", async (req, res) => {
     const { id } = req.params;
 
     try {
-        const result = await pool.query(
-            "DELETE FROM books WHERE id = $1 RETURNING *",
-            [id]
-        );
-        if (result.rowCount === 0) {
+        // Find the book by ID
+        const book = await Book.findByPk(id);
+
+        if (!book) {
             return res.status(404).json({ error: "Book not found" });
         }
+
+        // Delete the book
+        await book.destroy();
+
         res.status(200).json({ message: "Book removed successfully" });
     } catch (err) {
         console.error("Error removing book:", err);

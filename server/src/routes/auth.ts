@@ -1,8 +1,9 @@
 import { Router } from "express";
-import pool from "./db";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { jwtSecret } from "../config";
+import { jwtSecret } from "../config/jwtKey";
+import Admin from "../models/adminModel";
+import User from "../models/usersModel";
 
 const router = Router();
 
@@ -16,26 +17,25 @@ router.post("/signup", async (req, res) => {
 
     try {
         // Check if the user already exists
-        const userCheck = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
+        const user = await User.findOne({ where: { email } });
 
-        if (userCheck.rows.length > 0) {
+        if (user) {
             return res.status(400).json({ message: "User already exists" });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Insert the new user into the database
-        const newUser = await pool.query(
-            "INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING *",
-            [username, email, hashedPassword]
-        );
+        const newUser = await User.create({
+            username,
+            email,
+            password: hashedPassword,
+        });
 
-        const userId = newUser.rows[0].id;
         // Create a JWT token
-        const token = jwt.sign({ userId }, jwtSecret, { expiresIn: "1h" });
+        const token = jwt.sign({ userId: newUser.id }, jwtSecret, {
+            expiresIn: "1h",
+        });
 
         res.status(201).json({ token });
     } catch (err) {
@@ -53,16 +53,11 @@ router.post("/signin", async (req, res) => {
 
     try {
         // Check if the user exists
-        const userResult = await pool.query(
-            "SELECT * FROM users WHERE email = $1",
-            [email]
-        );
+        const user = await User.findOne({ where: { email } });
 
-        if (userResult.rows.length === 0) {
+        if (!user) {
             return res.status(400).json({ message: "Invalid credentials" });
         }
-
-        const user = userResult.rows[0];
 
         // Compare the provided password with the stored hashed password
         const match = await bcrypt.compare(password, user.password);
@@ -99,16 +94,11 @@ router.post("/adminlogin", async (req, res) => {
 
     try {
         // Check if the admin exists
-        const adminResult = await pool.query(
-            "SELECT * FROM admins WHERE email = $1 AND username = $2",
-            [email, username]
-        );
+        const admin = await Admin.findOne({ where: { email, username } });
 
-        if (adminResult.rows.length === 0) {
+        if (!admin) {
             return res.status(400).json({ message: "Invalid credentials" });
         }
-
-        const admin = adminResult.rows[0];
 
         // Compare the provided password with the stored hashed password
         const match = await bcrypt.compare(password, admin.password);

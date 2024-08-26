@@ -1,20 +1,64 @@
 import express from "express";
-import pool from "./db";
+import sequelize from "../config/db";
+import UserActivity from "../models/userActivity";
+import User from "../models/usersModel";
 
 const router = express.Router();
 
-// Endpoint to get all users
 router.get("/users", async (req, res) => {
+    const { page = 1, limit = 8 } = req.query;
+    const offset = (Number(page) - 1) * Number(limit);
+
     try {
-        const result = await pool.query(`
-      SELECT users.id, users.username, users.email, 
-             COALESCE(user_activity.books_borrowed_count, 0) AS books_borrowed,
-             COALESCE(user_activity.books_returned_count, 0) AS books_returned
-      FROM users
-      LEFT JOIN user_activity ON users.id = user_activity.user_id
-      ORDER BY users.id
-    `);
-        res.json(result.rows);
+        const totalUsers = await User.count();
+
+        const users = await User.findAll({
+            attributes: [
+                "id",
+                "username",
+                "email",
+                [
+                    sequelize.fn(
+                        "COALESCE",
+                        sequelize.fn(
+                            "SUM",
+                            sequelize.col("UserActivity.books_borrowed_count")
+                        ),
+                        0
+                    ),
+                    "books_borrowed",
+                ],
+                [
+                    sequelize.fn(
+                        "COALESCE",
+                        sequelize.fn(
+                            "SUM",
+                            sequelize.col("UserActivity.books_returned_count")
+                        ),
+                        0
+                    ),
+                    "books_returned",
+                ],
+            ],
+            include: [
+                {
+                    model: UserActivity,
+                    as: "UserActivity",
+                    attributes: [],
+                },
+            ],
+            group: ["User.id"],
+            order: [["id", "ASC"]],
+            limit: Number(limit),
+            offset: Number(offset),
+        });
+
+        res.json({
+            users,
+            totalUsers,
+            totalPages: Math.ceil(totalUsers / Number(limit)),
+            currentPage: Number(page),
+        });
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).send("Server error");

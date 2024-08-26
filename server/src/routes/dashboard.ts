@@ -1,15 +1,16 @@
 import express from "express";
-import pool from "./db";
+import BookCount from "../models/bookCount";
+import Book from "../models/bookModel";
+import UserActivity from "../models/userActivity";
+import User from "../models/usersModel";
 
 const router = express.Router();
 
 // Total Books
 router.get("/totalBooks", async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT COUNT(*) AS total_books FROM books"
-        );
-        res.json(result.rows[0]);
+        const totalBooks = await Book.count();
+        res.json({ total_books: totalBooks });
     } catch (err) {
         console.error("Error fetching total books:", err);
         res.status(500).json({ error: "Failed to get total books" });
@@ -19,10 +20,8 @@ router.get("/totalBooks", async (req, res) => {
 // Total Users
 router.get("/totalUsers", async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT COUNT(*) AS total_users FROM users"
-        );
-        res.json(result.rows[0]);
+        const totalUsers = await User.count();
+        res.json({ total_users: totalUsers });
     } catch (err) {
         console.error("Error fetching total users:", err);
         res.status(500).json({ error: "Failed to get total users" });
@@ -32,10 +31,24 @@ router.get("/totalUsers", async (req, res) => {
 // Top User
 router.get("/topUser", async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT u.username AS name FROM users u JOIN user_activity ua ON u.id = ua.user_id ORDER BY ua.books_borrowed_count DESC LIMIT 1"
-        );
-        res.json(result.rows[0]);
+        const topUser = await UserActivity.findOne({
+            attributes: ["user_id"],
+            include: [
+                {
+                    model: User,
+                    attributes: ["username"],
+                    as: "user",
+                },
+            ],
+            order: [["books_borrowed_count", "DESC"]],
+            limit: 1,
+        });
+
+        if (!topUser || !topUser.user) {
+            return res.status(404).json({ error: "No data found" });
+        }
+
+        res.json({ name: topUser.user.username });
     } catch (err) {
         console.error("Error fetching top user:", err);
         res.status(500).json({ error: "Failed to get top user" });
@@ -45,15 +58,29 @@ router.get("/topUser", async (req, res) => {
 // Most Borrowed Book
 router.get("/mostBorrowedBook", async (req, res) => {
     try {
-        const result = await pool.query(
-            "SELECT b.title, b.image_url FROM books b JOIN book_counts bc ON b.id = bc.book_id ORDER BY bc.borrow_count DESC LIMIT 1"
-        );
+        const mostBorrowedBook = await BookCount.findOne({
+            attributes: ["book_id"],
+            include: [
+                {
+                    model: Book,
+                    attributes: ["title", "image_url"],
+                    as: "book",
+                },
+            ],
+            order: [["borrow_count", "DESC"]],
+            limit: 1,
+        });
 
-        if (result.rows.length === 0) {
+        if (!mostBorrowedBook || !mostBorrowedBook.book) {
             return res.status(404).json({ error: "No data found" });
         }
 
-        res.json(result.rows[0]);
+        const bookData = mostBorrowedBook.book;
+
+        res.json({
+            title: bookData.title,
+            image_url: bookData.image_url,
+        });
     } catch (err) {
         console.error("Error fetching most borrowed book:", err);
         res.status(500).json({ error: "Internal Server Error" });
